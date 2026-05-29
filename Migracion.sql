@@ -4,7 +4,7 @@ IF NOT EXISTS (SELECT * FROM sys.schemas WHERE name = 'Pirulo_Viajes')
     EXEC('CREATE SCHEMA Pirulo_Viajes');
 GO
 
-DROP TABLE IF EXISTS Pirulo_Viajes.Detalle_Venta_Excursiones;
+DROP TABLE IF EXISTS Pirulo_Viajes.Detalle_Venta_Excursiones; --Check
 DROP TABLE IF EXISTS Pirulo_Viajes.Detalle_Venta_Vuelos;
 DROP TABLE IF EXISTS Pirulo_Viajes.Detalle_Venta_Hospedajes;
 DROP TABLE IF EXISTS Pirulo_Viajes.Detalle_Excursion_Propuesta;
@@ -15,11 +15,11 @@ DROP TABLE IF EXISTS Pirulo_Viajes.Detalle_Encuesta; --check
 DROP TABLE IF EXISTS Pirulo_Viajes.Venta; --Check
 DROP TABLE IF EXISTS Pirulo_Viajes.Propuesta;
 DROP TABLE IF EXISTS Pirulo_Viajes.Solicitud_Cotizacion; 
-DROP TABLE IF EXISTS Pirulo_Viajes.Encuesta;
-DROP TABLE IF EXISTS Pirulo_Viajes.Habitacion;
+DROP TABLE IF EXISTS Pirulo_Viajes.Encuesta; --check
+DROP TABLE IF EXISTS Pirulo_Viajes.Habitacion; --check
 DROP TABLE IF EXISTS Pirulo_Viajes.Vuelo;
-DROP TABLE IF EXISTS Pirulo_Viajes.Excursion;
-DROP TABLE IF EXISTS Pirulo_Viajes.Hospedaje;
+DROP TABLE IF EXISTS Pirulo_Viajes.Excursion; --check
+DROP TABLE IF EXISTS Pirulo_Viajes.Hospedaje; --check
 DROP TABLE IF EXISTS Pirulo_Viajes.Agente; --Check
 DROP TABLE IF EXISTS Pirulo_Viajes.Agencia; --Check
 DROP TABLE IF EXISTS Pirulo_Viajes.Cliente; --Check
@@ -31,8 +31,9 @@ DROP TABLE IF EXISTS Pirulo_Viajes.Canal_Venta; --Check
 DROP TABLE IF EXISTS Pirulo_Viajes.Aspecto; --Check
 DROP TABLE IF EXISTS Pirulo_Viajes.Estado; --Check
 DROP TABLE IF EXISTS Pirulo_Viajes.Alianza; --Check
+DROP TABLE IF EXISTS Pirulo_Viajes.Ciudad; --Check
+DROP TABLE IF EXISTS Pirulo_Viajes.Pais; --Check
 GO
-
 -------------------CREATE------------------
 
 CREATE TABLE Pirulo_Viajes.Alianza (
@@ -40,6 +41,21 @@ CREATE TABLE Pirulo_Viajes.Alianza (
     alianza_nombre nvarchar(255) NOT NULL,
     CONSTRAINT PK_Alianza PRIMARY KEY (alianza_id)
 );
+
+CREATE TABLE Pirulo_Viajes.Pais (
+    pais_id int IDENTITY(1,1) NOT NULL,
+    pais_descripcion nvarchar(255) NOT NULL,
+    CONSTRAINT PK_Pais PRIMARY KEY (pais_id)
+);
+
+CREATE TABLE Pirulo_Viajes.Ciudad (
+    ciudad_id int IDENTITY(1,1) NOT NULL,
+    ciudad_descripcion nvarchar(255) NOT NULL,
+    ciudad_pais int NOT NULL,
+    CONSTRAINT PK_Ciudad PRIMARY KEY (ciudad_id),
+    CONSTRAINT FK_Ciudad_Pais FOREIGN KEY (ciudad_pais) REFERENCES Pirulo_Viajes.Pais(pais_id)
+);
+
 
 CREATE TABLE Pirulo_Viajes.Medio_Pago (    
     Medio_Pago_Id int IDENTITY(1,1) NOT NULL,   
@@ -184,11 +200,48 @@ CREATE TABLE Pirulo_Viajes.Habitacion (
     CONSTRAINT FK_Habitacion_Hospedaje FOREIGN KEY (habitacion_hospedaje_id) REFERENCES Pirulo_Viajes.Hospedaje(hospedaje_id)
 );
 
+CREATE TABLE Pirulo_Viajes.Excursion (
+    excursion_id int IDENTITY(1,1) NOT NULL,
+    excursion_proveedor_id int NOT NULL,      
+    excursion_nombre nvarchar(255) NULL,
+    excursion_descripcion nvarchar(max) NULL,
+    excursion_horario nvarchar(50) NULL,
+    excursion_duracion int NULL,
+    excursion_precio decimal(18,2) NULL,
 
+    CONSTRAINT PK_Excursion PRIMARY KEY (excursion_id),
+    CONSTRAINT FK_Excursion_Proveedor FOREIGN KEY (excursion_proveedor_id) REFERENCES Pirulo_Viajes.Proveedor(Proveedor_id)
+);
 
+CREATE TABLE Pirulo_Viajes.Detalle_venta_excursiones (
+    Detalle_Venta_excursion_id int IDENTITY(1,1) NOT NULL,
+    Detalle_Venta_Excursion_Cod_Reserva nvarchar(255) NULL,
+    detalle_venta_numero bigint NOT NULL,                 
+    detalle_venta_excursion_excursion_id int NOT NULL,
+    Detalle_Venta_Excursion_Fecha_Reserva date NULL,
+    Detalle_Venta_Excursion_Cant int NULL,
+    Detalle_Venta_Excursion_Precio_Unitario decimal(18,2) NULL,
+    Detalle_Venta_Excursion_Subtotal decimal(18,2) NULL,
+    
+    CONSTRAINT PK_Detalle_venta_excursiones PRIMARY KEY (Detalle_Venta_excursion_id),
+    CONSTRAINT FK_Detalle_Venta FOREIGN KEY (detalle_venta_numero) REFERENCES Pirulo_Viajes.Venta(venta_numero), 
+    CONSTRAINT FK_Detalle_Excursion FOREIGN KEY (detalle_venta_excursion_excursion_id) REFERENCES Pirulo_Viajes.Excursion(excursion_id)
+);
 
+CREATE TABLE Pirulo_Viajes.Encuesta (
+    encuesta_codigo_encuesta bigint NOT NULL,
+    encuesta_fecha_encuesta date NULL,
+    encuesta_comentarios nvarchar(max) NULL,
+    encuesta_cliente int NOT NULL,          
+    encuesta_agentte bigint NOT NULL,         
+    
+    -- Configuración de Claves
+    CONSTRAINT PK_Encuesta PRIMARY KEY (encuesta_codigo_encuesta),
+    CONSTRAINT FK_Encuesta_Cliente FOREIGN KEY (encuesta_cliente) REFERENCES Pirulo_Viajes.Cliente(cliente_id),
+    CONSTRAINT FK_Encuesta_Agente FOREIGN KEY (encuesta_agentte) REFERENCES Pirulo_Viajes.Agente(Agente_Legajo)
+);
 
-------------------------INSERT
+------------------------INSERT--------------------
 INSERT INTO Pirulo_Viajes.Alianza (alianza_nombre)
 SELECT DISTINCT Aerolinea_Alianza
 FROM [GD1C2026].[gd_esquema].[Maestra]
@@ -304,6 +357,7 @@ SELECT DISTINCT
 FROM [GD1C2026].[gd_esquema].[Maestra]
 WHERE Agente_Legajo IS NOT NULL;
 
+--Caso particular, se encontro dnis repetidos. Usamos para desempatar el max
 INSERT INTO Pirulo_Viajes.Cliente (
     Cliente_Nombre,
     Cliente_Apellido,
@@ -316,17 +370,19 @@ INSERT INTO Pirulo_Viajes.Cliente (
     Cliente_Provincia
 )
 SELECT DISTINCT 
-    Cliente_Nombre,
-    Cliente_Apellido,
+    max(Cliente_Nombre),
+    max(Cliente_Apellido),
     Cliente_Dni,
-    Cliente_Tel,
-    Cliente_Mail,
-    Cliente_Direccion,
-    Cliente_Fecha_Nac,
-    Cliente_Localidad,
-    Cliente_Provincia
+    max(Cliente_Tel),
+    max(Cliente_Mail),
+    max(Cliente_Direccion),
+    max(Cliente_Fecha_Nac),
+    max(Cliente_Localidad),
+    max(Cliente_Provincia)
 FROM [GD1C2026].[gd_esquema].[Maestra]
-WHERE Cliente_Dni IS NOT NULL;
+WHERE Cliente_Dni IS NOT NULL
+GROUP BY Cliente_Dni
+
 
 INSERT INTO Pirulo_Viajes.Proveedor (
     Proveedor_Nombre,
@@ -392,7 +448,107 @@ INNER JOIN Pirulo_Viajes.Hospedaje H
     ON H.Hospedaje_Nombre = M.Hospedaje_Nombre
 WHERE M.Hospedaje_Nombre IS NOT NULL;
 
+---------------
+INSERT INTO Pirulo_Viajes.Excursion (
+    excursion_proveedor_id,
+    excursion_nombre,
+    excursion_descripcion,
+    excursion_horario,
+    excursion_duracion,
+    excursion_precio
+)
+SELECT DISTINCT 
+	P.Proveedor_id,
+    M.Excursion_Nombre,
+	M.Excursion_Descripcion,
+	M.Excursion_Horario,
+	M.Excursion_Duracion,
+	M.Excursion_Precio
+FROM [GD1C2026].[gd_esquema].[Maestra] M
+INNER JOIN Pirulo_Viajes.Proveedor P 
+    ON P.Proveedor_Nombre = M.Proveedor_Nombre
+WHERE M.Excursion_Nombre IS NOT NULL;
 
- 
+
+INSERT INTO Pirulo_Viajes.Detalle_venta_excursiones (
+    Detalle_Venta_Excursion_Cod_Reserva,
+    detalle_venta_numero,
+    detalle_venta_excursion_excursion_id,
+    Detalle_Venta_Excursion_Fecha_Reserva,
+    Detalle_Venta_Excursion_Cant,
+    Detalle_Venta_Excursion_Precio_Unitario,
+    Detalle_Venta_Excursion_Subtotal
+)
+SELECT DISTINCT
+    M.Detalle_Venta_Excursion_Cod_Reserva,      
+    V.venta_numero,                   
+    E.excursion_id,                  
+    M.Detalle_Venta_Excursion_Fecha_Reserva,       
+    M.Detalle_Venta_Excursion_Cant,             
+    M.Detalle_Venta_Excursion_Precio_Unitario,              
+    M.Detalle_Venta_Excursion_Subtotal 
+FROM [GD1C2026].[gd_esquema].[Maestra] M
+INNER JOIN Pirulo_Viajes.Excursion E 
+    ON E.excursion_nombre = M.Excursion_Nombre
+INNER JOIN Pirulo_Viajes.Venta V 
+    ON V.venta_numero= M.Venta_Nro_Venta
+WHERE M.Detalle_Venta_Excursion_Cod_Reserva IS NOT NULL;
+
+
+INSERT INTO Pirulo_Viajes.Encuesta (
+    encuesta_codigo_encuesta,
+    encuesta_fecha_encuesta,
+    encuesta_comentarios,
+    encuesta_cliente,
+    encuesta_agentte
+)
+SELECT 
+    M.Encuesta_Codigo_Encuesta,
+    MAX(M.Encuesta_Fecha_Encuesta), 
+    MAX(M.Encuesta_Comentarios),   
+    C.cliente_id,                   
+    MAX(M.Agente_Legajo)            
+FROM [GD1C2026].[gd_esquema].[Maestra] M
+INNER JOIN Pirulo_Viajes.Cliente C 
+    ON C.Cliente_Dni = M.Cliente_Dni
+WHERE M.Encuesta_Codigo_Encuesta IS NOT NULL
+GROUP BY M.Encuesta_Codigo_Encuesta, C.cliente_id;
+
+--Caso particular, paises con acento, debemos limpiar y tomar el primero
+WITH PaisesAgrupados AS (
+    SELECT 
+        Pais_Original,
+        ROW_NUMBER() OVER (
+            PARTITION BY REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(Pais_Original, 'á', 'a'), 'é', 'e'), 'í', 'i'), 'ó', 'o'), 'ú', 'u')
+            ORDER BY Pais_Original DESC
+        ) AS Posicion
+    FROM (
+        SELECT Hospedaje_Pais AS Pais_Original FROM [GD1C2026].[gd_esquema].[Maestra] WHERE Hospedaje_Pais IS NOT NULL
+        UNION ALL
+        SELECT Aerolinea_Pais FROM [GD1C2026].[gd_esquema].[Maestra] WHERE Aerolinea_Pais IS NOT NULL
+    ) AS Unificados
+) 
+INSERT INTO Pirulo_Viajes.Pais (pais_descripcion)
+SELECT Pais_Original
+FROM PaisesAgrupados
+WHERE Posicion = 1;
+
+INSERT INTO Pirulo_Viajes.Ciudad (ciudad_descripcion, ciudad_pais)
+SELECT DISTINCT 
+    Origen.Ciudad_Texto, 
+    P.pais_id
+FROM (
+    SELECT Cliente_Localidad AS Ciudad_Texto, Cliente_Provincia AS Pais_Texto 
+    FROM [GD1C2026].[gd_esquema].[Maestra] 
+    WHERE Cliente_Localidad IS NOT NULL AND Cliente_Provincia IS NOT NULL
+    
+    UNION
+    
+    SELECT Hospedaje_Ciudad, Hospedaje_Pais 
+    FROM [GD1C2026].[gd_esquema].[Maestra] 
+    WHERE Hospedaje_Ciudad IS NOT NULL AND Hospedaje_Pais IS NOT NULL
+) AS Origen
+INNER JOIN Pirulo_Viajes.Pais P 
+    ON P.pais_descripcion = Origen.Pais_Texto;
 
 
