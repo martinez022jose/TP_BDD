@@ -4,33 +4,47 @@ IF NOT EXISTS (SELECT * FROM sys.schemas WHERE name = 'Pirulo_Viajes')
     EXEC('CREATE SCHEMA Pirulo_Viajes');
 GO
 
--- 1. Primero borramos los detalles más profundos (Nivel 4)
+-- ============================================================================
+-- 1. PRIMER NIVEL DE DROPS: Borramos absolutamente todos los detalles e hijos (Hijos de todos)
+-- ============================================================================
 DROP TABLE IF EXISTS Pirulo_Viajes.Detalle_Venta_Excursiones;
 DROP TABLE IF EXISTS Pirulo_Viajes.Detalle_venta_vuelo;
-DROP TABLE IF EXISTS Pirulo_Viajes.Detalle_venta_hospedaje; -- Ojo que en tu lista decía 'Detalle_Venta_Hospedajes' con S
-DROP TABLE IF EXISTS Pirulo_Viajes.Detalle_Excursion_Propuesta;
-DROP TABLE IF EXISTS Pirulo_Viajes.Detalle_Hospedaje_Propuesta;
-DROP TABLE IF EXISTS Pirulo_Viajes.Detalle_Vuelo_Propuesta;
+DROP TABLE IF EXISTS Pirulo_Viajes.Detalle_venta_hospedaje;
+
+-- Corrección de nombres exactos según el modelo de Propuestas:
+DROP TABLE IF EXISTS Pirulo_Viajes.Detalle_propuesta_vuelo;      -- <-- Corregido
+DROP TABLE IF EXISTS Pirulo_Viajes.Detalle_propuesta_hospedaje;  -- <-- Corregido
+DROP TABLE IF EXISTS Pirulo_Viajes.Detalle_Excursion_Propuesta;   -- (Dejalo por las dudas si existe)
+
 DROP TABLE IF EXISTS Pirulo_Viajes.Detalle_Solicitud;
 DROP TABLE IF EXISTS Pirulo_Viajes.Detalle_Encuesta;
+GO -- Usamos GO para asegurarnos que limpie la memoria intermedia
 
--- 2. Borramos las transacciones y entidades intermedias que apuntaban a las maestras (Nivel 3)
+-- ============================================================================
+-- 2. SEGUNDO NIVEL DE DROPS: Tablas Cabecera y Entidades Intermedias
+-- ============================================================================
 DROP TABLE IF EXISTS Pirulo_Viajes.Venta;
-DROP TABLE IF EXISTS Pirulo_Viajes.Propuesta;
-DROP TABLE IF EXISTS Pirulo_Viajes.Solicitud_Cotizacion; 
+DROP TABLE IF EXISTS Pirulo_Viajes.Propuesta;           -- Ahora sí va a morir porque sus detalles ya no existen
+DROP TABLE IF EXISTS Pirulo_Viajes.Solicitud_Cotizacion; -- Ahora sí va a morir porque Propuesta ya no la traba
 DROP TABLE IF EXISTS Pirulo_Viajes.Encuesta;
 DROP TABLE IF EXISTS Pirulo_Viajes.Habitacion;
 DROP TABLE IF EXISTS Pirulo_Viajes.Vuelo;
+GO
 
--- 3. Borramos las entidades maestras principales (Nivel 2)
+-- ============================================================================
+-- 3. TERCER NIVEL DE DROPS: Entidades Maestras Principales
+-- ============================================================================
 DROP TABLE IF EXISTS Pirulo_Viajes.Excursion;
 DROP TABLE IF EXISTS Pirulo_Viajes.Hospedaje;
 DROP TABLE IF EXISTS Pirulo_Viajes.Agente;
 DROP TABLE IF EXISTS Pirulo_Viajes.Agencia;
 DROP TABLE IF EXISTS Pirulo_Viajes.Cliente;
 DROP TABLE IF EXISTS Pirulo_Viajes.Aeropuerto;
+GO
 
--- 4. Al final de todo, borramos los catálogos base que no dependen de nadie (Nivel 1)
+-- ============================================================================
+-- 4. CUARTO NIVEL DE DROPS: Catálogos Base (No dependen de nadie)
+-- ============================================================================
 DROP TABLE IF EXISTS Pirulo_Viajes.Aerolinea;
 DROP TABLE IF EXISTS Pirulo_Viajes.Proveedor;
 DROP TABLE IF EXISTS Pirulo_Viajes.Medio_Pago;
@@ -393,6 +407,48 @@ CREATE TABLE Pirulo_Viajes.Detalle_Solicitud (
     -- VÍNCULO CON CIUDAD (Descomentar cuando quieras activar la integridad estricta con Ciudad)
     --CONSTRAINT FK_DetalleSolicitud_Ciudad FOREIGN KEY (detalle_solicitud_ciudad) REFERENCES Pirulo_Viajes.Ciudad(ciudad_id)
 );
+
+CREATE TABLE Pirulo_Viajes.Propuesta (
+    propuesta_numero bigint NOT NULL,
+    propuesta_fecha_emision date NULL,
+    propuesta_fecha_vigencia date NULL,
+    propuesta_fecha_desde date NULL,
+    propuesta_fecha_hasta date NULL,
+    propuesta_subtotal decimal(18, 2) NULL,
+    propuesta_descuento decimal(18, 2) NULL,
+    propuesta_importe_total decimal(18, 2) NULL,
+    propuesta_estado int NULL,           -- FK externa comentada abajo
+    propuesta_agente bigint NULL,        -- FK externa comentada abajo
+    propuesta_solicitud_numero bigint NULL, -- Vínculo con la solicitud cargada antes
+    
+    CONSTRAINT PK_Propuesta PRIMARY KEY (propuesta_numero),
+    
+    -- VÍNCULO INTERNO CON SOLICITUD (¡Este ya lo podemos activar!)
+    CONSTRAINT FK_Propuesta_Solicitud FOREIGN KEY (propuesta_solicitud_numero) REFERENCES Pirulo_Viajes.Solicitud_Cotizacion(solicitud_numero)
+    
+    -- VÍNCULOS EXTERNOS (Descomentar cuando crees las respectivas tablas base)
+    -- CONSTRAINT FK_Propuesta_Estado FOREIGN KEY (propuesta_estado) REFERENCES Pirulo_Viajes.Estado_Propuesta(estado_id),
+    -- CONSTRAINT FK_Propuesta_Agente FOREIGN KEY (propuesta_agente) REFERENCES Pirulo_Viajes.Agente(agente_id)
+);
+
+CREATE TABLE Pirulo_Viajes.Detalle_propuesta_vuelo (
+    Detalle_propuesta_vuelo_id int IDENTITY(1,1) NOT NULL,
+    detalle_propuesta_vuelo_propuesta bigint NOT NULL,
+    detalle_propuesta_vuelo_vuelo int NULL, -- FK externa comentada abajo
+    detalle_propuesta_vuelo_cant_pasajes int NULL,
+    detalle_propuesta_vuelo_precio decimal(18, 2) NULL,
+    detalle_propuesta_vuelo_subtotal decimal(18, 2) NULL,
+    
+    CONSTRAINT PK_Detalle_Propuesta_Vuelo PRIMARY KEY (Detalle_propuesta_vuelo_id),
+    
+    -- VÍNCULO DIRECTO CON SU PADRE PROPUESTA
+    CONSTRAINT FK_DetalleVuelo_Propuesta FOREIGN KEY (detalle_propuesta_vuelo_propuesta) REFERENCES Pirulo_Viajes.Propuesta(propuesta_numero)
+    
+    -- VÍNCULO EXTERNO (Descomentar cuando tengas la tabla Vuelo saneada)
+    -- CONSTRAINT FK_DetalleVuelo_Vuelo FOREIGN KEY (detalle_propuesta_vuelo_vuelo) REFERENCES Pirulo_Viajes.Vuelo(vuelo_id)
+);
+
+
 
 
 ------------------------INSERT--------------------
@@ -899,4 +955,58 @@ LEFT JOIN Pirulo_Viajes.Ciudad C
 WHERE M.Solicitud_Nro_Solicitud IS NOT NULL 
   AND M.Detalle_Solicitud_Ciudad IS NOT NULL
   AND M.Solicitud_Nro_Solicitud IN (SELECT solicitud_numero FROM Pirulo_Viajes.Solicitud_Cotizacion);
+
+INSERT INTO Pirulo_Viajes.Propuesta (
+    propuesta_numero,
+    propuesta_fecha_emision,
+    propuesta_fecha_desde,
+    propuesta_fecha_hasta,
+    propuesta_subtotal,
+    propuesta_descuento,
+    propuesta_importe_total,
+    propuesta_estado,
+    propuesta_agente,
+    propuesta_solicitud_numero
+)
+SELECT 
+    M.Propuesta_Nro_Propuesta, 
+    MAX(M.Propuesta_Fecha_Emision),
+    MAX(M.Propuesta_Fecha_Desde),
+    MAX(M.Propuesta_Fecha_Hasta),
+    MAX(M.Propuesta_Subtotal),
+    MAX(M.Propuesta_Descuento),
+    MAX(M.Propuesta_Importe_Total),
+    NULL, 
+    NULL, 
+    M.Solicitud_Nro_Solicitud  
+FROM [GD1C2026].[gd_esquema].[Maestra] M
+INNER JOIN Pirulo_Viajes.Solicitud_Cotizacion S 
+    ON S.solicitud_numero = M.Solicitud_Nro_Solicitud
+WHERE M.Propuesta_Nro_Propuesta IS NOT NULL
+GROUP BY M.Propuesta_Nro_Propuesta, M.Solicitud_Nro_Solicitud;
+
+
+INSERT INTO Pirulo_Viajes.Detalle_propuesta_vuelo (
+    detalle_propuesta_vuelo_propuesta,
+    detalle_propuesta_vuelo_vuelo,
+    detalle_propuesta_vuelo_cant_pasajes,
+    detalle_propuesta_vuelo_precio,
+    detalle_propuesta_vuelo_subtotal
+)
+SELECT DISTINCT
+    M.Propuesta_Nro_Propuesta,
+    V.vuelo_id, -- Temporalmente NULL (Después lo cruzás con Vuelo)
+    M.Detalle_Propuesta_Vuelo_Cant_Pasajes, 
+    M.Detalle_Propuesta_Vuelo_Precio,
+    M.Detalle_Propuesta_Vuelo_Subtotal
+FROM [GD1C2026].[gd_esquema].[Maestra] M
+INNER JOIN Pirulo_Viajes.Propuesta P 
+    ON P.propuesta_numero = M.Propuesta_Nro_Propuesta
+INNER JOIN Pirulo_Viajes.Vuelo V
+    ON V.vuelo_fecha_salida = M.Vuelo_Fecha_Salida
+   AND V.vuelo_aeropuerto_salida = M.Aeropuerto_Salida_Codigo
+   AND V.vuelo_aeropuerto_llegada = M.Aeropuerto_Llegada_Codigo
+WHERE M.Propuesta_Nro_Propuesta IS NOT NULL 
+  AND M.Detalle_Propuesta_Vuelo_Precio IS NOT NULL;
+
 
