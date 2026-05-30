@@ -4,9 +4,50 @@ IF NOT EXISTS (SELECT * FROM sys.schemas WHERE name = 'Pirulo_Viajes')
     EXEC('CREATE SCHEMA Pirulo_Viajes');
 GO
 
+-- 1. Primero borramos los detalles más profundos (Nivel 4)
+DROP TABLE IF EXISTS Pirulo_Viajes.Detalle_Venta_Excursiones;
+DROP TABLE IF EXISTS Pirulo_Viajes.Detalle_venta_vuelo;
+DROP TABLE IF EXISTS Pirulo_Viajes.Detalle_venta_hospedaje; -- Ojo que en tu lista decía 'Detalle_Venta_Hospedajes' con S
+DROP TABLE IF EXISTS Pirulo_Viajes.Detalle_Excursion_Propuesta;
+DROP TABLE IF EXISTS Pirulo_Viajes.Detalle_Hospedaje_Propuesta;
+DROP TABLE IF EXISTS Pirulo_Viajes.Detalle_Vuelo_Propuesta;
+DROP TABLE IF EXISTS Pirulo_Viajes.Detalle_Solicitud;
+DROP TABLE IF EXISTS Pirulo_Viajes.Detalle_Encuesta;
+
+-- 2. Borramos las transacciones y entidades intermedias que apuntaban a las maestras (Nivel 3)
+DROP TABLE IF EXISTS Pirulo_Viajes.Venta;
+DROP TABLE IF EXISTS Pirulo_Viajes.Propuesta;
+DROP TABLE IF EXISTS Pirulo_Viajes.Solicitud_Cotizacion; 
+DROP TABLE IF EXISTS Pirulo_Viajes.Encuesta;
+DROP TABLE IF EXISTS Pirulo_Viajes.Habitacion;
+DROP TABLE IF EXISTS Pirulo_Viajes.Vuelo;
+
+-- 3. Borramos las entidades maestras principales (Nivel 2)
+DROP TABLE IF EXISTS Pirulo_Viajes.Excursion;
+DROP TABLE IF EXISTS Pirulo_Viajes.Hospedaje;
+DROP TABLE IF EXISTS Pirulo_Viajes.Agente;
+DROP TABLE IF EXISTS Pirulo_Viajes.Agencia;
+DROP TABLE IF EXISTS Pirulo_Viajes.Cliente;
+DROP TABLE IF EXISTS Pirulo_Viajes.Aeropuerto;
+
+-- 4. Al final de todo, borramos los catálogos base que no dependen de nadie (Nivel 1)
+DROP TABLE IF EXISTS Pirulo_Viajes.Aerolinea;
+DROP TABLE IF EXISTS Pirulo_Viajes.Proveedor;
+DROP TABLE IF EXISTS Pirulo_Viajes.Medio_Pago;
+DROP TABLE IF EXISTS Pirulo_Viajes.Canal_Venta;
+DROP TABLE IF EXISTS Pirulo_Viajes.Aspecto;
+DROP TABLE IF EXISTS Pirulo_Viajes.Estado;
+DROP TABLE IF EXISTS Pirulo_Viajes.Alianza;
+DROP TABLE IF EXISTS Pirulo_Viajes.Ciudad;
+DROP TABLE IF EXISTS Pirulo_Viajes.Pais;
+DROP TABLE IF EXISTS Pirulo_Viajes.Localidad;
+DROP TABLE IF EXISTS Pirulo_Viajes.Provincia;
+GO
+
+
 DROP TABLE IF EXISTS Pirulo_Viajes.Detalle_Venta_Excursiones; --Check
-DROP TABLE IF EXISTS Pirulo_Viajes.Detalle_Venta_Vuelos;
-DROP TABLE IF EXISTS Pirulo_Viajes.Detalle_Venta_Hospedajes;
+DROP TABLE IF EXISTS Pirulo_Viajes.Detalle_venta_vuelo; --check
+DROP TABLE IF EXISTS Pirulo_Viajes.Detalle_Venta_Hospedajes; --check
 DROP TABLE IF EXISTS Pirulo_Viajes.Detalle_Excursion_Propuesta;
 DROP TABLE IF EXISTS Pirulo_Viajes.Detalle_Hospedaje_Propuesta;
 DROP TABLE IF EXISTS Pirulo_Viajes.Detalle_Vuelo_Propuesta;
@@ -33,6 +74,8 @@ DROP TABLE IF EXISTS Pirulo_Viajes.Estado; --Check
 DROP TABLE IF EXISTS Pirulo_Viajes.Alianza; --Check
 DROP TABLE IF EXISTS Pirulo_Viajes.Ciudad; --Check
 DROP TABLE IF EXISTS Pirulo_Viajes.Pais; --Check
+DROP TABLE IF EXISTS Pirulo_Viajes.Localidad; --Check
+DROP TABLE IF EXISTS Pirulo_Viajes.Provincia; --Check
 GO
 -------------------CREATE------------------
 
@@ -56,12 +99,30 @@ CREATE TABLE Pirulo_Viajes.Ciudad (
     CONSTRAINT FK_Ciudad_Pais FOREIGN KEY (ciudad_pais) REFERENCES Pirulo_Viajes.Pais(pais_id)
 );
 
+CREATE TABLE Pirulo_Viajes.Provincia (
+    provincia_id int IDENTITY(1,1) NOT NULL,
+    provincia_descripcion nvarchar(255) NOT NULL,
+    
+    CONSTRAINT PK_Provincia PRIMARY KEY (provincia_id)
+);
+
+CREATE TABLE Pirulo_Viajes.Localidad (
+    localidad_id int IDENTITY(1,1) NOT NULL,
+    localidad_descripcion nvarchar(255) NOT NULL,
+    localidad_provincia int NOT NULL,
+    
+    CONSTRAINT PK_Localidad PRIMARY KEY (localidad_id),
+    CONSTRAINT FK_Localidad_Provincia FOREIGN KEY (localidad_provincia) REFERENCES Pirulo_Viajes.Provincia(provincia_id)
+);
+
 
 CREATE TABLE Pirulo_Viajes.Medio_Pago (    
     Medio_Pago_Id int IDENTITY(1,1) NOT NULL,   
     Medio_Pago_Descripcion varchar(255) NOT NULL,   
 	CONSTRAINT PK_Medio_Pago PRIMARY KEY (Medio_Pago_Id)
 );
+
+
 
 CREATE TABLE Pirulo_Viajes.Canal_Venta (    
     Canal_Venta_Id int IDENTITY(1,1) NOT NULL,   
@@ -145,15 +206,15 @@ CREATE TABLE Pirulo_Viajes.Cliente (
     cliente_id int IDENTITY(1,1) NOT NULL,
     Cliente_Nombre nvarchar(255) NULL,
     Cliente_Apellido nvarchar(255) NULL,
-    Cliente_Dni nvarchar(255) NULL,
+    Cliente_Dni nvarchar(255) NOT NULL,
     Cliente_Tel nvarchar(255) NULL,
     Cliente_Mail nvarchar(255) NULL,
     Cliente_Direccion nvarchar(255) NULL,
     Cliente_Fecha_Nac date NULL,
-    Cliente_Localidad nvarchar(255) NULL,
-    Cliente_Provincia nvarchar(255) NULL,
+    Cliente_Localidad int NULL
     
     CONSTRAINT PK_Cliente PRIMARY KEY (cliente_id)
+	CONSTRAINT FK_Cliente_Localidad FOREIGN KEY (Cliente_Localidad) REFERENCES Pirulo_Viajes.Localidad(localidad_id)
 );
 
 CREATE TABLE Pirulo_Viajes.Proveedor (
@@ -233,12 +294,70 @@ CREATE TABLE Pirulo_Viajes.Encuesta (
     encuesta_fecha_encuesta date NULL,
     encuesta_comentarios nvarchar(max) NULL,
     encuesta_cliente int NOT NULL,          
-    encuesta_agentte bigint NOT NULL,         
-    
-    -- Configuración de Claves
+    encuesta_agente bigint NOT NULL,         
     CONSTRAINT PK_Encuesta PRIMARY KEY (encuesta_codigo_encuesta),
     CONSTRAINT FK_Encuesta_Cliente FOREIGN KEY (encuesta_cliente) REFERENCES Pirulo_Viajes.Cliente(cliente_id),
-    CONSTRAINT FK_Encuesta_Agente FOREIGN KEY (encuesta_agentte) REFERENCES Pirulo_Viajes.Agente(Agente_Legajo)
+    CONSTRAINT FK_Encuesta_Agente FOREIGN KEY (encuesta_agente) REFERENCES Pirulo_Viajes.Agente(Agente_Legajo)
+);
+
+CREATE TABLE Pirulo_Viajes.Detalle_venta_vuelo (
+    Detalle_venta_vuelo_id int IDENTITY(1,1) NOT NULL,
+    Detalle_Venta_Vuelo_Cod_Reserva nvarchar(255) NULL,
+    detalle_venta_vuelo_venta bigint NOT NULL,       -- FK a tu tabla Venta
+    detalle_venta_vuelo_vuelo_id int  NULL,       -- FK a tu tabla Vuelo
+    detalle_venta_vuelo_cantidad_pasajes int NULL,
+    detalle_venta_vuelo_precio_unitario decimal(18, 2) NULL,
+    Detalle_Venta_Vuelo_Subtotal decimal(18, 2) NULL,
+    
+    CONSTRAINT PK_Detalle_venta_vuelo PRIMARY KEY (Detalle_venta_vuelo_id),
+    CONSTRAINT FK_DetalleVuelo_Venta FOREIGN KEY (detalle_venta_vuelo_venta) REFERENCES Pirulo_Viajes.Venta(venta_numero),
+    --CONSTRAINT FK_DetalleVuelo_Vuelo FOREIGN KEY (detalle_venta_vuelo_vuelo_id) REFERENCES Pirulo_Viajes.Vuelo(vuelo_id)
+);
+
+CREATE TABLE Pirulo_Viajes.Detalle_venta_hospedaje (
+    Detalle_Venta_Hospedaje_id int IDENTITY(1,1) NOT NULL,
+    Detalle_Venta_Hospedaje_Cod_Reserva nvarchar(255) NULL,
+    detalle_venta_hospedaje_venta bigint NOT NULL,   -- FK a tu tabla Venta
+    detalle_venta_habitacion_id int NOT NULL, 
+	detalle_venta_habitacion_hospedaje_id int NOT NULL,
+    Detalle_Venta_Hospedaje_Precio_Unitario decimal(18, 2) NULL,
+    Detalle_Venta_Hospedaje_Fecha_Desde date NULL,
+    Detalle_Venta_Hospedaje_Fecha_Hasta date NULL,
+    Detalle_Venta_Hospedaje_Cantidad int NULL,
+    Detalle_Venta_Hospedaje_Subtotal decimal(18, 2) NULL,
+    
+    CONSTRAINT PK_Detalle_venta_hospedaje PRIMARY KEY (Detalle_Venta_Hospedaje_id),
+    CONSTRAINT FK_DetalleHospedaje_Venta FOREIGN KEY (detalle_venta_hospedaje_venta) REFERENCES Pirulo_Viajes.Venta(venta_numero),
+    CONSTRAINT FK_DetalleHospedaje_Habitacion FOREIGN KEY (detalle_venta_habitacion_id, detalle_venta_habitacion_hospedaje_id) 
+        REFERENCES Pirulo_Viajes.Habitacion(habitacion_id, habitacion_hospedaje_id)
+);
+
+CREATE TABLE Pirulo_Viajes.Aeropuerto (
+    aeropuerto_codigo nvarchar(10) NOT NULL,
+    aeropuerto_descripcion nvarchar(200) NULL,
+    aeropuerto_ciudad int NOT NULL, -- FK a la tabla Ciudad que ya poblaste
+    
+    CONSTRAINT PK_Aeropuerto PRIMARY KEY (aeropuerto_codigo),
+    CONSTRAINT FK_Aeropuerto_Ciudad FOREIGN KEY (aeropuerto_ciudad) REFERENCES Pirulo_Viajes.Ciudad(ciudad_id)
+);
+
+CREATE TABLE Pirulo_Viajes.Vuelo (
+    vuelo_id int IDENTITY(1,1) NOT NULL,
+    vuelo_aerolinea_codigo nvarchar(255) NULL, 
+    vuelo_aeropuerto_salida nvarchar(10) NOT NULL, 
+    vuelo_aeropuerto_llegada nvarchar(10) NOT NULL,
+    vuelo_fecha_salida date NULL,
+    vuelo_horario_salida nvarchar(50) NULL,
+    vuelo_fecha_llegada date NULL,
+    vuelo_horario_llegada nvarchar(50) NULL,
+    vuelo_duracion int NULL,
+    vuelo_precio decimal(18, 2) NULL,
+    vuelo_incluye_carry bit NULL,
+    vuelo_incluye_valija bit NULL,
+    
+    CONSTRAINT PK_Vuelo PRIMARY KEY (vuelo_id),
+    CONSTRAINT FK_Vuelo_AeropuertoSalida FOREIGN KEY (vuelo_aeropuerto_salida) REFERENCES Pirulo_Viajes.Aeropuerto(aeropuerto_codigo),
+    CONSTRAINT FK_Vuelo_AeropuertoLlegada FOREIGN KEY (vuelo_aeropuerto_llegada) REFERENCES Pirulo_Viajes.Aeropuerto(aeropuerto_codigo)
 );
 
 ------------------------INSERT--------------------
@@ -357,6 +476,38 @@ SELECT DISTINCT
 FROM [GD1C2026].[gd_esquema].[Maestra]
 WHERE Agente_Legajo IS NOT NULL;
 
+INSERT INTO Pirulo_Viajes.Provincia (provincia_descripcion)
+SELECT Agencia_Provincia FROM [GD1C2026].[gd_esquema].[Maestra] WHERE Agencia_Provincia IS NOT NULL
+UNION
+SELECT Agente_Provincia FROM [GD1C2026].[gd_esquema].[Maestra] WHERE Agente_Provincia IS NOT NULL
+UNION
+SELECT Cliente_Provincia FROM [GD1C2026].[gd_esquema].[Maestra] WHERE Cliente_Provincia IS NOT NULL;
+
+
+INSERT INTO Pirulo_Viajes.Localidad (localidad_descripcion, localidad_provincia)
+SELECT DISTINCT 
+    Origen.Localidad_Total, 
+    P.provincia_id
+FROM (
+    SELECT Agencia_Localidad AS Localidad_Total, Agencia_Provincia AS Provincia_Total
+    FROM [GD1C2026].[gd_esquema].[Maestra] 
+    WHERE Agencia_Localidad IS NOT NULL AND Agencia_Provincia IS NOT NULL
+    
+    UNION
+    
+    SELECT Agente_Localidad, Agente_Provincia 
+    FROM [GD1C2026].[gd_esquema].[Maestra] 
+    WHERE Agente_Localidad IS NOT NULL AND Agente_Provincia IS NOT NULL
+    
+    UNION
+    
+    SELECT Cliente_Localidad, Cliente_Provincia 
+    FROM [GD1C2026].[gd_esquema].[Maestra] 
+    WHERE Cliente_Localidad IS NOT NULL AND Cliente_Provincia IS NOT NULL
+) AS Origen
+INNER JOIN Pirulo_Viajes.Provincia P 
+    ON P.provincia_descripcion = Origen.Provincia_Total;
+
 --Caso particular, se encontro dnis repetidos. Usamos para desempatar el max
 INSERT INTO Pirulo_Viajes.Cliente (
     Cliente_Nombre,
@@ -366,8 +517,7 @@ INSERT INTO Pirulo_Viajes.Cliente (
     Cliente_Mail,
     Cliente_Direccion,
     Cliente_Fecha_Nac,
-    Cliente_Localidad,
-    Cliente_Provincia
+    Cliente_Localidad
 )
 SELECT DISTINCT 
     max(Cliente_Nombre),
@@ -377,12 +527,14 @@ SELECT DISTINCT
     max(Cliente_Mail),
     max(Cliente_Direccion),
     max(Cliente_Fecha_Nac),
-    max(Cliente_Localidad),
-    max(Cliente_Provincia)
-FROM [GD1C2026].[gd_esquema].[Maestra]
+    L.localidad_id
+FROM [GD1C2026].[gd_esquema].[Maestra] M
+INNER JOIN Pirulo_Viajes.Localidad L 
+    ON L.localidad_descripcion = M.Cliente_Localidad
+INNER JOIN Pirulo_Viajes.Provincia P 
+    ON P.provincia_id = L.localidad_provincia AND P.provincia_descripcion = M.Cliente_Provincia
 WHERE Cliente_Dni IS NOT NULL
-GROUP BY Cliente_Dni
-
+GROUP BY Cliente_Dni,L.localidad_id
 
 INSERT INTO Pirulo_Viajes.Proveedor (
     Proveedor_Nombre,
@@ -500,19 +652,19 @@ INSERT INTO Pirulo_Viajes.Encuesta (
     encuesta_fecha_encuesta,
     encuesta_comentarios,
     encuesta_cliente,
-    encuesta_agentte
+    encuesta_agente
 )
 SELECT 
     M.Encuesta_Codigo_Encuesta,
     MAX(M.Encuesta_Fecha_Encuesta), 
     MAX(M.Encuesta_Comentarios),   
-    C.cliente_id,                   
+    MAX(C.cliente_id), 
     MAX(M.Agente_Legajo)            
 FROM [GD1C2026].[gd_esquema].[Maestra] M
 INNER JOIN Pirulo_Viajes.Cliente C 
     ON C.Cliente_Dni = M.Cliente_Dni
 WHERE M.Encuesta_Codigo_Encuesta IS NOT NULL
-GROUP BY M.Encuesta_Codigo_Encuesta, C.cliente_id;
+GROUP BY M.Encuesta_Codigo_Encuesta;
 
 --Caso particular, paises con acento, debemos limpiar y tomar el primero
 WITH PaisesAgrupados AS (
@@ -533,22 +685,244 @@ SELECT Pais_Original
 FROM PaisesAgrupados
 WHERE Posicion = 1;
 
+-----------------------------------
 INSERT INTO Pirulo_Viajes.Ciudad (ciudad_descripcion, ciudad_pais)
 SELECT DISTINCT 
     Origen.Ciudad_Texto, 
     P.pais_id
 FROM (
-    SELECT Cliente_Localidad AS Ciudad_Texto, Cliente_Provincia AS Pais_Texto 
-    FROM [GD1C2026].[gd_esquema].[Maestra] 
-    WHERE Cliente_Localidad IS NOT NULL AND Cliente_Provincia IS NOT NULL
-    
-    UNION
-    
-    SELECT Hospedaje_Ciudad, Hospedaje_Pais 
+    SELECT Hospedaje_Ciudad AS Ciudad_Texto, Hospedaje_Pais  AS Pais_Texto
     FROM [GD1C2026].[gd_esquema].[Maestra] 
     WHERE Hospedaje_Ciudad IS NOT NULL AND Hospedaje_Pais IS NOT NULL
 ) AS Origen
 INNER JOIN Pirulo_Viajes.Pais P 
     ON P.pais_descripcion = Origen.Pais_Texto;
 
+INSERT INTO Pirulo_Viajes.Detalle_venta_vuelo (
+    Detalle_Venta_Vuelo_Cod_Reserva,
+    detalle_venta_vuelo_venta,
+    detalle_venta_vuelo_vuelo_id, 
+    detalle_venta_vuelo_cantidad_pasajes,
+    detalle_venta_vuelo_precio_unitario,
+    Detalle_Venta_Vuelo_Subtotal
+)
+SELECT 
+	distinct
+M.Detalle_Venta_Vuelo_Cod_Reserva, 
+    V.venta_numero,            
+    null,--VU.vuelo_id,            -- Buscado por Join
+    M.Detalle_Venta_Vuelo_Cantidad_Pasajes,
+    M.Detalle_Venta_Vuelo_Precio_Unitario,
+    M.Detalle_Venta_Vuelo_Subtotal --
+FROM [GD1C2026].[gd_esquema].[Maestra] M
+INNER JOIN Pirulo_Viajes.Venta V 
+    ON V.venta_numero = M.Venta_Nro_Venta 
+WHERE M.Detalle_Venta_Vuelo_Cod_Reserva IS NOT NULL;
+--INNER JOIN Pirulo_Viajes.Vuelo VU 
+    --ON VU.vuelo_codigo = M.Vuelo_Codigo       -- Adaptar según tu diseño de Vuelos
+--WHERE M.Vuelo_Codigo_Reserva IS NOT NULL;
 
+INSERT INTO Pirulo_Viajes.Detalle_venta_hospedaje (
+    Detalle_Venta_Hospedaje_Cod_Reserva,
+    detalle_venta_hospedaje_venta,
+    detalle_venta_habitacion_id,           
+    detalle_venta_habitacion_hospedaje_id, --Cambio, traje el hospedaje x pk compuesta
+    Detalle_Venta_Hospedaje_Precio_Unitario,
+    Detalle_Venta_Hospedaje_Fecha_Desde,
+    Detalle_Venta_Hospedaje_Fecha_Hasta,
+    Detalle_Venta_Hospedaje_Cantidad,
+    Detalle_Venta_Hospedaje_Subtotal)
+SELECT DISTINCT
+    M.Detalle_Venta_Hospedaje_Cod_Reserva, 
+    V.venta_numero, 
+    H.habitacion_id, 
+    H.habitacion_hospedaje_id, 
+    M.Detalle_Venta_Hospedaje_Precio_Unitario,
+    M.Detalle_Venta_Hospedaje_Fecha_Desde,
+    M.Detalle_Venta_Hospedaje_Fecha_Hasta,
+    M.Detalle_Venta_Hospedaje_Cantidad,
+    M.Detalle_Venta_Hospedaje_Subtotal
+FROM [GD1C2026].[gd_esquema].[Maestra] M
+INNER JOIN Pirulo_Viajes.Venta V 
+    ON V.venta_numero = M.Venta_Nro_Venta 
+INNER JOIN Pirulo_Viajes.Hospedaje HO
+    ON HO.hospedaje_nombre = M.Hospedaje_Nombre 
+
+INNER JOIN Pirulo_Viajes.Habitacion H 
+    ON H.habitacion_hospedaje_id = HO.hospedaje_id 
+    AND H.Habitacion_Nombre_tipo = M.Habitacion_Nombre 
+WHERE M.Detalle_Venta_Hospedaje_Cod_Reserva IS NOT NULL;
+
+/*
+INSERT INTO Pirulo_Viajes.Aeropuerto (
+	aeropuerto_codigo, 
+	aeropuerto_descripcion, 
+	aeropuerto_ciudad)
+SELECT DISTINCT 
+    base.Aeropuerto_Cod,
+    base.Aeropuerto_Desc,
+    C.ciudad_id
+FROM (
+    -- Aeropuertos de Salida
+    SELECT 
+        Aeropuerto_Salida_Codigo AS Aeropuerto_Cod, 
+        Aeropuerto_Salida_Descripcion AS Aeropuerto_Desc,
+        Aeropuerto_Salida_Ciudad AS Ciudad_Texto,
+        Aerolinea_Pais AS Pais_Texto -- Ajustar si el campo país de la salida se llama distinto
+    FROM [GD1C2026].[gd_esquema].[Maestra]
+    WHERE Aeropuerto_Salida_Codigo IS NOT NULL
+    
+    UNION
+    
+    SELECT 
+        Aeropuerto_Llegada_Codigo, 
+        Aeropuerto_Llegada_Descripcion,
+        Aeropuerto_Llegada_Ciudad,
+        Aerolinea_Pais
+    FROM [GD1C2026].[gd_esquema].[Maestra]
+    WHERE Aeropuerto_Llegada_Codigo IS NOT NULL
+) AS base
+INNER JOIN Pirulo_Viajes.Pais P 
+    ON P.pais_descripcion = base.Pais_Texto
+INNER JOIN Pirulo_Viajes.Ciudad C 
+    ON C.ciudad_descripcion = base.Ciudad_Texto AND C.ciudad_pais = P.pais_id;
+
+INSERT INTO Pirulo_Viajes.Vuelo (
+    vuelo_aerolinea_codigo,
+    vuelo_aeropuerto_salida,
+    vuelo_aeropuerto_llegada,
+    vuelo_fecha_salida,
+    vuelo_horario_salida,
+    vuelo_fecha_llegada,
+    vuelo_horario_llegada,
+    vuelo_duracion,
+    vuelo_precio,
+    vuelo_incluye_carry,
+    vuelo_incluye_valija
+)
+
+
+--------------------
+
+INSERT INTO Pirulo_Viajes.Aeropuerto (aeropuerto_codigo, aeropuerto_descripcion, aeropuerto_ciudad)
+SELECT DISTINCT 
+    Origen.Aeropuerto_Cod,
+    MAX(Origen.Aeropuerto_Desc), -- Usamos MAX por si un código tiene descripciones sutilmente distintas
+    MAX(C.ciudad_id)             -- Buscamos el ID de la ciudad
+FROM (
+    SELECT 
+        Aeropuerto_Salida_Codigo AS Aeropuerto_Cod, 
+        Aeropuerto_Salida_Descripcion AS Aeropuerto_Desc,
+        Aeropuerto_Salida_Ciudad AS Ciudad_Texto
+    FROM [GD1C2026].[gd_esquema].[Maestra]
+    WHERE Aeropuerto_Salida_Codigo IS NOT NULL
+    
+    UNION
+    
+    SELECT 
+        Aeropuerto_Llegada_Codigo, 
+        Aeropuerto_Llegada_Descripcion,
+        Aeropuerto_Llegada_Ciudad
+    FROM [GD1C2026].[gd_esquema].[Maestra]
+    WHERE Aeropuerto_Llegada_Codigo IS NOT NULL
+) AS Origen
+-- Hacemos el JOIN con Ciudad de forma directa por el nombre de la ciudad
+LEFT JOIN Pirulo_Viajes.Ciudad C 
+    ON C.ciudad_descripcion = Origen.Ciudad_Texto
+GROUP BY Origen.Aeropuerto_Cod;
+
+INSERT INTO Pirulo_Viajes.Vuelo (
+    vuelo_aerolinea_codigo,   -- Recibe 'AA' (Código de la aerolínea)
+    vuelo_aeropuerto_salida,  -- Recibe 'ATH' (FK a Aeropuerto)
+    vuelo_aeropuerto_llegada, -- Recibe 'EZE' (FK a Aeropuerto)
+    vuelo_fecha_salida,
+    vuelo_horario_salida,
+    vuelo_fecha_llegada,
+    vuelo_horario_llegada,
+    vuelo_duracion,
+    vuelo_precio,
+    vuelo_incluye_carry,      -- Recibe el 0 o 1 directo
+    vuelo_incluye_valija      -- Recibe el 0 o 1 directo
+)
+SELECT DISTINCT
+    M.Aerolinea_Codigo,
+    M.Aeropuerto_Salida_Codigo,
+    M.Aeropuerto_Llegada_Codigo,
+    M.Vuelo_Fecha_Salida,
+    M.Vuelo_Horario_Salida,
+    M.Vuelo_Fecha_Llegada,
+    M.Vuelo_Horario_Llegada,
+    M.Vuelo_Duracion,
+    M.Vuelo_Precio,
+    M.Vuelo_Incluye_Carry,
+    M.Vuelo_Incluye_Valija
+FROM [GD1C2026].[gd_esquema].[Maestra] M
+WHERE M.Aerolinea_Codigo IS NOT NULL 
+  AND M.Aeropuerto_Salida_Codigo IS NOT NULL 
+  AND M.Aeropuerto_Llegada_Codigo IS NOT NULL;
+  
+  select * from Pirulo_Viajes.Aeropuerto*/
+
+
+-----------------
+
+/*
+INSERT INTO Pirulo_Viajes.Aeropuerto (aeropuerto_codigo, aeropuerto_descripcion, aeropuerto_ciudad)
+SELECT DISTINCT 
+    base.Aeropuerto_Cod,
+    MAX(base.Aeropuerto_Desc),
+    ISNULL(MAX(C.ciudad_id), -999) 
+FROM (
+    SELECT 
+        Aeropuerto_Salida_Codigo AS Aeropuerto_Cod, 
+        Aeropuerto_Salida_Descripcion AS Aeropuerto_Desc,
+        Aeropuerto_Salida_Ciudad AS Ciudad_Texto
+    FROM [GD1C2026].[gd_esquema].[Maestra]
+    WHERE Aeropuerto_Salida_Codigo IS NOT NULL
+    
+    UNION
+    
+    SELECT 
+        Aeropuerto_Llegada_Codigo, 
+        Aeropuerto_Llegada_Descripcion,
+        Aeropuerto_Llegada_Ciudad
+    FROM [GD1C2026].[gd_esquema].[Maestra]
+    WHERE Aeropuerto_Llegada_Codigo IS NOT NULL
+) AS base
+LEFT JOIN Pirulo_Viajes.Ciudad C 
+    ON LTRIM(RTRIM(C.ciudad_descripcion)) = LTRIM(RTRIM(base.Ciudad_Texto))
+GROUP BY base.Aeropuerto_Cod;
+
+INSERT INTO Pirulo_Viajes.Vuelo (
+    vuelo_aerolinea_codigo,   
+    vuelo_aeropuerto_salida, 
+    vuelo_aeropuerto_llegada, 
+    vuelo_fecha_salida,
+    vuelo_horario_salida,
+    vuelo_fecha_llegada,
+    vuelo_horario_llegada,
+    vuelo_duracion,
+    vuelo_precio,
+    vuelo_incluye_carry,      
+    vuelo_incluye_valija     
+)
+SELECT DISTINCT
+    M.Aerolinea_Codigo,
+    M.Aeropuerto_Salida_Codigo,
+    M.Aeropuerto_Llegada_Codigo,
+    M.Vuelo_Fecha_Salida,
+    M.Vuelo_Horario_Salida,
+    M.Vuelo_Fecha_Llegada,
+    M.Vuelo_Horario_Llegada,
+    M.Vuelo_Duracion,
+    M.Vuelo_Precio,
+    M.Vuelo_Incluye_Carry,
+    M.Vuelo_Incluye_Valija
+FROM [GD1C2026].[gd_esquema].[Maestra] M
+WHERE M.Aerolinea_Codigo IS NOT NULL 
+  AND M.Aeropuerto_Salida_Codigo IS NOT NULL 
+  AND M.Aeropuerto_Llegada_Codigo IS NOT NULL;
+
+  select * from Pirulo_Viajes.Aeropuerto
+
+  select * from Pirulo_Viajes.Vuelo */
