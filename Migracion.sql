@@ -710,7 +710,7 @@ SELECT
 	distinct
 M.Detalle_Venta_Vuelo_Cod_Reserva, 
     V.venta_numero,            
-    null,--VU.vuelo_id,            -- Buscado por Join
+    null,--VU.vuelo_id,            
     M.Detalle_Venta_Vuelo_Cantidad_Pasajes,
     M.Detalle_Venta_Vuelo_Precio_Unitario,
     M.Detalle_Venta_Vuelo_Subtotal --
@@ -719,7 +719,7 @@ INNER JOIN Pirulo_Viajes.Venta V
     ON V.venta_numero = M.Venta_Nro_Venta 
 WHERE M.Detalle_Venta_Vuelo_Cod_Reserva IS NOT NULL;
 --INNER JOIN Pirulo_Viajes.Vuelo VU 
-    --ON VU.vuelo_codigo = M.Vuelo_Codigo       -- Adaptar según tu diseño de Vuelos
+    --ON VU.vuelo_codigo = M.Vuelo_Codigo       
 --WHERE M.Vuelo_Codigo_Reserva IS NOT NULL;
 
 INSERT INTO Pirulo_Viajes.Detalle_venta_hospedaje (
