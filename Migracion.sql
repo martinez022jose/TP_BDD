@@ -753,135 +753,34 @@ INNER JOIN Pirulo_Viajes.Habitacion H
     AND H.Habitacion_Nombre_tipo = M.Habitacion_Nombre 
 WHERE M.Detalle_Venta_Hospedaje_Cod_Reserva IS NOT NULL;
 
-/*
-INSERT INTO Pirulo_Viajes.Aeropuerto (
-	aeropuerto_codigo, 
-	aeropuerto_descripcion, 
-	aeropuerto_ciudad)
+
+INSERT INTO Pirulo_Viajes.Pais (pais_descripcion)
+VALUES ('País No Especificado');
+
+INSERT INTO Pirulo_Viajes.Ciudad (ciudad_descripcion, ciudad_pais)
+VALUES (
+    'Ciudad No Especificada', 
+    (SELECT pais_id FROM Pirulo_Viajes.Pais WHERE pais_descripcion = 'País No Especificado')
+);
+
+
+INSERT INTO Pirulo_Viajes.Aeropuerto (aeropuerto_codigo, aeropuerto_descripcion, aeropuerto_ciudad)
 SELECT DISTINCT 
     base.Aeropuerto_Cod,
-    base.Aeropuerto_Desc,
-    C.ciudad_id
+    MAX(base.Aeropuerto_Desc),
+    ISNULL(MAX(C.ciudad_id), (SELECT ciudad_id FROM Pirulo_Viajes.Ciudad WHERE ciudad_descripcion = 'Ciudad No Especificada'))
 FROM (
     -- Aeropuertos de Salida
     SELECT 
         Aeropuerto_Salida_Codigo AS Aeropuerto_Cod, 
         Aeropuerto_Salida_Descripcion AS Aeropuerto_Desc,
-        Aeropuerto_Salida_Ciudad AS Ciudad_Texto,
-        Aerolinea_Pais AS Pais_Texto -- Ajustar si el campo país de la salida se llama distinto
-    FROM [GD1C2026].[gd_esquema].[Maestra]
-    WHERE Aeropuerto_Salida_Codigo IS NOT NULL
-    
-    UNION
-    
-    SELECT 
-        Aeropuerto_Llegada_Codigo, 
-        Aeropuerto_Llegada_Descripcion,
-        Aeropuerto_Llegada_Ciudad,
-        Aerolinea_Pais
-    FROM [GD1C2026].[gd_esquema].[Maestra]
-    WHERE Aeropuerto_Llegada_Codigo IS NOT NULL
-) AS base
-INNER JOIN Pirulo_Viajes.Pais P 
-    ON P.pais_descripcion = base.Pais_Texto
-INNER JOIN Pirulo_Viajes.Ciudad C 
-    ON C.ciudad_descripcion = base.Ciudad_Texto AND C.ciudad_pais = P.pais_id;
-
-INSERT INTO Pirulo_Viajes.Vuelo (
-    vuelo_aerolinea_codigo,
-    vuelo_aeropuerto_salida,
-    vuelo_aeropuerto_llegada,
-    vuelo_fecha_salida,
-    vuelo_horario_salida,
-    vuelo_fecha_llegada,
-    vuelo_horario_llegada,
-    vuelo_duracion,
-    vuelo_precio,
-    vuelo_incluye_carry,
-    vuelo_incluye_valija
-)
-
-
---------------------
-
-INSERT INTO Pirulo_Viajes.Aeropuerto (aeropuerto_codigo, aeropuerto_descripcion, aeropuerto_ciudad)
-SELECT DISTINCT 
-    Origen.Aeropuerto_Cod,
-    MAX(Origen.Aeropuerto_Desc), -- Usamos MAX por si un código tiene descripciones sutilmente distintas
-    MAX(C.ciudad_id)             -- Buscamos el ID de la ciudad
-FROM (
-    SELECT 
-        Aeropuerto_Salida_Codigo AS Aeropuerto_Cod, 
-        Aeropuerto_Salida_Descripcion AS Aeropuerto_Desc,
         Aeropuerto_Salida_Ciudad AS Ciudad_Texto
     FROM [GD1C2026].[gd_esquema].[Maestra]
     WHERE Aeropuerto_Salida_Codigo IS NOT NULL
     
     UNION
     
-    SELECT 
-        Aeropuerto_Llegada_Codigo, 
-        Aeropuerto_Llegada_Descripcion,
-        Aeropuerto_Llegada_Ciudad
-    FROM [GD1C2026].[gd_esquema].[Maestra]
-    WHERE Aeropuerto_Llegada_Codigo IS NOT NULL
-) AS Origen
--- Hacemos el JOIN con Ciudad de forma directa por el nombre de la ciudad
-LEFT JOIN Pirulo_Viajes.Ciudad C 
-    ON C.ciudad_descripcion = Origen.Ciudad_Texto
-GROUP BY Origen.Aeropuerto_Cod;
-
-INSERT INTO Pirulo_Viajes.Vuelo (
-    vuelo_aerolinea_codigo,   -- Recibe 'AA' (Código de la aerolínea)
-    vuelo_aeropuerto_salida,  -- Recibe 'ATH' (FK a Aeropuerto)
-    vuelo_aeropuerto_llegada, -- Recibe 'EZE' (FK a Aeropuerto)
-    vuelo_fecha_salida,
-    vuelo_horario_salida,
-    vuelo_fecha_llegada,
-    vuelo_horario_llegada,
-    vuelo_duracion,
-    vuelo_precio,
-    vuelo_incluye_carry,      -- Recibe el 0 o 1 directo
-    vuelo_incluye_valija      -- Recibe el 0 o 1 directo
-)
-SELECT DISTINCT
-    M.Aerolinea_Codigo,
-    M.Aeropuerto_Salida_Codigo,
-    M.Aeropuerto_Llegada_Codigo,
-    M.Vuelo_Fecha_Salida,
-    M.Vuelo_Horario_Salida,
-    M.Vuelo_Fecha_Llegada,
-    M.Vuelo_Horario_Llegada,
-    M.Vuelo_Duracion,
-    M.Vuelo_Precio,
-    M.Vuelo_Incluye_Carry,
-    M.Vuelo_Incluye_Valija
-FROM [GD1C2026].[gd_esquema].[Maestra] M
-WHERE M.Aerolinea_Codigo IS NOT NULL 
-  AND M.Aeropuerto_Salida_Codigo IS NOT NULL 
-  AND M.Aeropuerto_Llegada_Codigo IS NOT NULL;
-  
-  select * from Pirulo_Viajes.Aeropuerto*/
-
-
------------------
-
-/*
-INSERT INTO Pirulo_Viajes.Aeropuerto (aeropuerto_codigo, aeropuerto_descripcion, aeropuerto_ciudad)
-SELECT DISTINCT 
-    base.Aeropuerto_Cod,
-    MAX(base.Aeropuerto_Desc),
-    ISNULL(MAX(C.ciudad_id), -999) 
-FROM (
-    SELECT 
-        Aeropuerto_Salida_Codigo AS Aeropuerto_Cod, 
-        Aeropuerto_Salida_Descripcion AS Aeropuerto_Desc,
-        Aeropuerto_Salida_Ciudad AS Ciudad_Texto
-    FROM [GD1C2026].[gd_esquema].[Maestra]
-    WHERE Aeropuerto_Salida_Codigo IS NOT NULL
-    
-    UNION
-    
+    -- Aeropuertos de Llegada
     SELECT 
         Aeropuerto_Llegada_Codigo, 
         Aeropuerto_Llegada_Descripcion,
@@ -922,7 +821,3 @@ FROM [GD1C2026].[gd_esquema].[Maestra] M
 WHERE M.Aerolinea_Codigo IS NOT NULL 
   AND M.Aeropuerto_Salida_Codigo IS NOT NULL 
   AND M.Aeropuerto_Llegada_Codigo IS NOT NULL;
-
-  select * from Pirulo_Viajes.Aeropuerto
-
-  select * from Pirulo_Viajes.Vuelo */
