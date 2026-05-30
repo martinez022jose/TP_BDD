@@ -44,7 +44,7 @@ DROP TABLE IF EXISTS Pirulo_Viajes.Localidad;
 DROP TABLE IF EXISTS Pirulo_Viajes.Provincia;
 GO
 
-
+/*
 DROP TABLE IF EXISTS Pirulo_Viajes.Detalle_Venta_Excursiones; --Check
 DROP TABLE IF EXISTS Pirulo_Viajes.Detalle_venta_vuelo; --check
 DROP TABLE IF EXISTS Pirulo_Viajes.Detalle_Venta_Hospedajes; --check
@@ -77,6 +77,7 @@ DROP TABLE IF EXISTS Pirulo_Viajes.Pais; --Check
 DROP TABLE IF EXISTS Pirulo_Viajes.Localidad; --Check
 DROP TABLE IF EXISTS Pirulo_Viajes.Provincia; --Check
 GO
+*/
 -------------------CREATE------------------
 
 CREATE TABLE Pirulo_Viajes.Alianza (
@@ -359,6 +360,40 @@ CREATE TABLE Pirulo_Viajes.Vuelo (
     CONSTRAINT FK_Vuelo_AeropuertoSalida FOREIGN KEY (vuelo_aeropuerto_salida) REFERENCES Pirulo_Viajes.Aeropuerto(aeropuerto_codigo),
     CONSTRAINT FK_Vuelo_AeropuertoLlegada FOREIGN KEY (vuelo_aeropuerto_llegada) REFERENCES Pirulo_Viajes.Aeropuerto(aeropuerto_codigo)
 );
+
+CREATE TABLE Pirulo_Viajes.Solicitud_Cotizacion (
+    solicitud_numero bigint NOT NULL,
+    solicitud_cliente int NULL, -- Permitimos NULL temporalmente
+    solicitud_fecha_solicitud date NULL,
+    solicitud_fecha_inicio_tentativo date NULL,
+    solicitud_fecha_fin_tentativo date NULL,
+    solicitud_cantidad_pax int NULL,
+    solicitud_observaciones nvarchar(MAX) NULL,
+    solicitud_presupuesto_estimado decimal(18, 2) NULL,
+    
+    CONSTRAINT PK_Solicitud PRIMARY KEY (solicitud_numero),
+    
+    -- VÍNCULO CON CLIENTE (Descomentar cuando crees Pirulo_Viajes.Cliente)
+    -- CONSTRAINT FK_Solicitud_Cliente FOREIGN KEY (solicitud_cliente) REFERENCES Pirulo_Viajes.Cliente(cliente_id)
+);
+
+-- 2. Crear la tabla Detalle_Solicitud
+CREATE TABLE Pirulo_Viajes.Detalle_Solicitud (
+    detalle_solicitud_id int IDENTITY(1,1) NOT NULL,
+    detalle_solicitud_solicitud bigint NOT NULL, 
+    detalle_solicitud_ciudad int NULL, -- Permitimos NULL temporalmente por si falla el match
+    detalle_solicitud_cant_dias_aprox int NULL,
+    detalle_solicitud_observaciones nvarchar(MAX) NULL,
+    
+    CONSTRAINT PK_Detalle_Solicitud PRIMARY KEY (detalle_solicitud_id),
+    
+    -- VÍNCULO CON LA CABECERA (Este ya funciona porque creás Solicitud antes)
+    CONSTRAINT FK_DetalleSolicitud_Solicitud FOREIGN KEY (detalle_solicitud_solicitud) REFERENCES Pirulo_Viajes.Solicitud_Cotizacion(solicitud_numero),
+    
+    -- VÍNCULO CON CIUDAD (Descomentar cuando quieras activar la integridad estricta con Ciudad)
+    --CONSTRAINT FK_DetalleSolicitud_Ciudad FOREIGN KEY (detalle_solicitud_ciudad) REFERENCES Pirulo_Viajes.Ciudad(ciudad_id)
+);
+
 
 ------------------------INSERT--------------------
 INSERT INTO Pirulo_Viajes.Alianza (alianza_nombre)
@@ -821,3 +856,47 @@ FROM [GD1C2026].[gd_esquema].[Maestra] M
 WHERE M.Aerolinea_Codigo IS NOT NULL 
   AND M.Aeropuerto_Salida_Codigo IS NOT NULL 
   AND M.Aeropuerto_Llegada_Codigo IS NOT NULL;
+
+
+
+INSERT INTO Pirulo_Viajes.Solicitud_Cotizacion (
+    solicitud_numero,
+    solicitud_cliente,
+    solicitud_fecha_solicitud,
+    solicitud_fecha_inicio_tentativo,
+    solicitud_fecha_fin_tentativo,
+    solicitud_cantidad_pax,
+    solicitud_observaciones,
+    solicitud_presupuesto_estimado
+)
+SELECT 
+    CAST(LTRIM(RTRIM(M.Solicitud_Nro_Solicitud)) AS BIGINT),
+    NULL, -- Temporalmente NULL
+    MAX(M.Solicitud_Fecha_Solicitud),
+    MAX(M.Solicitud_Fecha_Inicio_Tentativa),
+    MAX(M.Solicitud_Fecha_Fin_Tentativa),
+    MAX(M.Solicitud_Cant_Pax),
+    MAX(M.Solicitud_Observaciones),
+    MAX(M.Solicitud_Presupuesto_Estimado)
+FROM [GD1C2026].[gd_esquema].[Maestra] M
+WHERE M.Solicitud_Nro_Solicitud IS NOT NULL
+GROUP BY CAST(LTRIM(RTRIM(M.Solicitud_Nro_Solicitud)) AS BIGINT);
+
+INSERT INTO Pirulo_Viajes.Detalle_Solicitud (
+    detalle_solicitud_solicitud,
+    detalle_solicitud_ciudad,
+    detalle_solicitud_cant_dias_aprox,
+    detalle_solicitud_observaciones
+)
+SELECT DISTINCT
+    M.Solicitud_Nro_Solicitud,
+    ISNULL(C.ciudad_id, (SELECT ciudad_id FROM Pirulo_Viajes.Ciudad WHERE ciudad_descripcion = 'Ciudad No Especificada')),
+    M.Detalle_Solicitud_Cant_Dias_Aprox,
+    M.Detalle_Solicitud_Observaciones
+FROM [GD1C2026].[gd_esquema].[Maestra] M
+LEFT JOIN Pirulo_Viajes.Ciudad C 
+    ON LTRIM(RTRIM(C.ciudad_descripcion)) = LTRIM(RTRIM(M.Detalle_Solicitud_Ciudad))
+WHERE M.Solicitud_Nro_Solicitud IS NOT NULL 
+  AND M.Detalle_Solicitud_Ciudad IS NOT NULL
+  AND M.Solicitud_Nro_Solicitud IN (SELECT solicitud_numero FROM Pirulo_Viajes.Solicitud_Cotizacion);
+
